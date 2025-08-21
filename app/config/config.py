@@ -26,8 +26,19 @@ logger.addHandler(console_handler)
 
 class Config:
     """FastAPI 설정 값을 관리하는 클래스"""
+    KC_BASE: str = os.getenv("KC_BASE", "https://sandol.sio2.kr/auth").rstrip("/")
+
+    BASE_URL: str = "https://sandol.sio2.kr/auth-relay"
+    JWT_SECRET: str = os.getenv("CHANGE_ME_32B_RANDOM")
 
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+
+    LIT_TTL_SECONDS: int = 300
+    STATE_TTL_SECONDS: int = 300
+
+    # redirect_after 허용 접두어(화이트리스트)
+    REDIRECT_AFTER_ALLOWLIST: list[str] = ["sandol://", "https://sandol.sio2.kr/"]
+    DEFAULT_REDIRECT_AFTER: str = "sandol://auth/success"
 
     class HttpStatus:
         """HTTP 상태 코드를 정의하는 클래스"""
