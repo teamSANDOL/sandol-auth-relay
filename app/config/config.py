@@ -26,6 +26,7 @@ console_handler.setFormatter(console_formatter)
 
 logger.addHandler(console_handler)
 
+
 class Config:
     """애플리케이션 전역 설정.
 
@@ -72,10 +73,19 @@ class Config:
         "discord-bot": {
             "client_id": "sandol-discord-bot",
             "issuer": "https://auth.sio2.kr/realms/sandol",
-            "redirect_uri": "https://relay.sio2.kr/oidc/callback",
+            "redirect_uri": "https://sandol.house.sio2.kr/relay/oidc/callback",
             "scope": "openid",
             "client_secret": "xxxxxx",
             "aud_override": None,
+        },
+        "myapp": {
+            "server_url": "https://sandol.house.sio2.kr/auth/",
+            "realm": "Sandori",
+            "client_id": "myapp",
+            "redirect_uri": "https://sandol.house.sio2.kr/relay/oidc/callback",
+            "issuer": "https://sandol.house.sio2.kr/auth/realms/Sandori",
+            "client_secret": "89XgXBd6cem6IKys8j23Iuw4V1P8oaDn",
+            "scope": "openid profile email",
         },
     }
 

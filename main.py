@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
     logger.info("🛑 서비스 종료:")
 
 # lifespan 적용
-app = FastAPI(title="Auth Relay", lifespan=lifespan, root_path="/auth-relay")
+app = FastAPI(title="Auth Relay", lifespan=lifespan, root_path="/relay")
 app.include_router(auth_relay_router)
 
 
