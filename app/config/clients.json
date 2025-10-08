@@ -1,0 +1,24 @@
+{
+  "kakao-bot": {
+    "server_url": "https://sandol.house.sio2.kr/auth/",
+    "realm": "sandori",
+    "client_id": "sandol-kakao-bot",
+    "client_secret": "REDACTED",
+    "redirect_uri": "{BASE_URL}/oidc/callback",
+    "issuer": "https://auth.sio2.kr/realms/sandol"
+  },
+  "discord-bot": {
+    "client_id": "sandol-discord-bot",
+    "issuer": "https://auth.sio2.kr/realms/sandol",
+    "client_secret": "xxxxxx",
+    "redirect_uri": "https://sandol.house.sio2.kr/relay/oidc/callback"
+  },
+  "myapp": {
+    "server_url": "https://sandol.house.sio2.kr/auth/",
+    "realm": "Sandori",
+    "client_id": "myapp",
+    "redirect_uri": "https://sandol.house.sio2.kr/relay/oidc/callback",
+    "client_secret": "89XgXBd6cem6IKys8j23Iuw4V1P8oaDn",
+    "issuer": "https://sandol.house.sio2.kr/auth/realms/Sandori"
+  }
+}
