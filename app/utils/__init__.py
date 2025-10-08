@@ -11,36 +11,43 @@ from fastapi import HTTPException
 from app.config import Config
 
 def now_ts() -> int:
-    """현재 epoch seconds 반환."""
+    """현재 epoch seconds를 반환한다.
+
+    Returns:
+        int: 현재 epoch seconds.
+    """
     return int(time.time())
 
 def gen_code_verifier(n: int = 64) -> str:
-    """PKCE code_verifier 생성.
+    """PKCE code_verifier를 생성한다.
 
     Args:
-        n: 바이트 길이(43~128 문자를 만족하도록 충분히 크게).
+        n (int): 토큰 바이트 길이로, 43~128 문자를 만족하도록 충분히 크게 설정한다.
+
     Returns:
-        base64url 패딩 제거 문자열.
+        str: base64url 패딩이 제거된 문자열 code_verifier.
     """
     return base64.urlsafe_b64encode(secrets.token_bytes(n)).decode().rstrip("=")
 
 def code_challenge_s256(verifier: str) -> str:
-    """PKCE code_challenge(S256) 생성.
+    """PKCE code_challenge(S256)를 생성한다.
 
     Args:
-        verifier: code_verifier 문자열.
+        verifier (str): code_verifier 문자열.
+
     Returns:
-        base64url(SHA-256(verifier)) 문자열.
+        str: base64url(SHA-256(verifier))로 생성된 code_challenge.
     """
     return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
 
 def redirect_allowed(dest: Optional[str]) -> bool:
-    """최종 리다이렉트 목적지 검증(allowlist prefix 매칭).
+    """최종 리다이렉트 목적지를 allowlist로 검증한다.
 
     Args:
-        dest: 목적지 문자열.
+        dest (Optional[str]): 리다이렉트 대상 문자열.
+
     Returns:
-        허용 여부.
+        bool: 허용된 목적지면 True, 아니면 False.
     """
     if not dest:
         return True
@@ -50,14 +57,16 @@ def redirect_allowed(dest: Optional[str]) -> bool:
     return False
 
 def resolve_client(client_key: str) -> Dict[str, Any]:
-    """client_key로 클라이언트 설정 조회.
+    """client_key에 해당하는 클라이언트 설정을 조회한다.
 
     Args:
-        client_key: 등록된 클라이언트 키.
+        client_key (str): 등록된 클라이언트 키.
+
     Returns:
-        설정 dict.
+        Dict[str, Any]: 매칭된 클라이언트 설정.
+
     Raises:
-        HTTPException: 등록되지 않은 키.
+        HTTPException: 등록되지 않은 클라이언트 키인 경우.
     """
     cfg = Config.CLIENTS.get(client_key)
     if not cfg:
@@ -65,15 +74,16 @@ def resolve_client(client_key: str) -> Dict[str, Any]:
     return cfg
 
 def make_lit(*, chatbot_user_id: str, callback_url: str, client_key: str, redirect_after: Optional[str]) -> str:
-    """로그인 링크 토큰(LIT) 발급.
+    """로그인 링크 토큰(LIT)을 발급한다.
 
     Args:
-        chatbot_user_id: 챗봇 사용자 식별자.
-        callback_url: 챗봇 콜백 URL.
-        client_key: 등록된 클라이언트 키.
-        redirect_after: 최종 리다이렉트 목적지.
+        chatbot_user_id (str): 챗봇 사용자 식별자.
+        callback_url (str): 챗봇 서버 콜백 URL.
+        client_key (str): 등록된 클라이언트 키.
+        redirect_after (Optional[str]): 최종 리다이렉트 목적지.
+
     Returns:
-        HS256 서명된 LIT 문자열.
+        str: HS256으로 서명된 LIT 문자열.
     """
     now = now_ts()
     claims = {
@@ -90,14 +100,16 @@ def make_lit(*, chatbot_user_id: str, callback_url: str, client_key: str, redire
     return jwt.encode(claims, Config.JWT_SECRET, algorithm="HS256")
 
 def decode_lit(lit: str) -> Dict[str, Any]:
-    """LIT 디코드 및 검증.
+    """LIT 토큰을 디코드하고 유효성을 검증한다.
 
     Args:
-        lit: lit 값.
+        lit (str): 검증 대상 LIT 문자열.
+
     Returns:
-        클레임 dict.
+        Dict[str, Any]: 디코드된 클레임 딕셔너리.
+
     Raises:
-        HTTPException: 유효하지 않거나 만료된 경우.
+        HTTPException: 토큰이 유효하지 않거나 만료된 경우.
     """
     from jwt import InvalidTokenError
     try:
@@ -115,16 +127,17 @@ def decode_lit(lit: str) -> Dict[str, Any]:
         raise HTTPException(400, "invalid_or_expired_link")
 
 def build_authorize_url(*, auth_endpoint: str, cfg: Dict[str, Any], state: str, nonce: str, code_challenge: str) -> str:
-    """인가 URL 생성(수동 빌드, PKCE 포함).
+    """PKCE 정보를 포함한 인가 URL을 생성한다.
 
     Args:
-        auth_endpoint: authorization_endpoint.
-        cfg: 클라이언트 설정.
-        state: CSRF 방지 state.
-        nonce: 재사용 방지 nonce.
-        code_challenge: PKCE 코드 챌린지(S256).
+        auth_endpoint (str): authorization_endpoint URL.
+        cfg (Dict[str, Any]): 클라이언트 설정 딕셔너리.
+        state (str): CSRF 방지용 state 값.
+        nonce (str): 재사용 방지 nonce 값.
+        code_challenge (str): PKCE 코드 챌린지(S256).
+
     Returns:
-        사용자 리다이렉트용 인가 URL.
+        str: 사용자 리다이렉트용 인가 URL.
     """
     params = {
         "client_id": cfg["client_id"],

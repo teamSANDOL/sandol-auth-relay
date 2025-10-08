@@ -11,25 +11,25 @@ from app.config import Config
 
 
 def canonical_json(data: Dict[str, Any]) -> str:
-    """HMAC 서명을 위한 정규화 JSON 문자열 생성.
+    """HMAC 서명을 위한 정규화 JSON 문자열을 생성한다.
 
     Args:
-        data: 페이로드 dict
+        data (Dict[str, Any]): 서명 대상 페이로드.
 
     Returns:
-        정렬된 키 순서로 직렬화된 JSON 문자열.
+        str: 정렬된 키 순서로 직렬화된 JSON 문자열.
     """
     return json.dumps(data, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
 
 
 def sign_payload(payload: Dict[str, Any]) -> str:
-    """relay→chatbot HMAC-SHA256 서명 생성.
+    """relay→chatbot HMAC-SHA256 서명을 생성한다.
 
     Args:
-        payload: 서명 대상 페이로드.
+        payload (Dict[str, Any]): 서명 대상 페이로드.
 
     Returns:
-        base64url 인코딩된 서명 문자열.
+        str: base64url 인코딩된 서명 문자열.
     """
     msg = canonical_json(payload).encode("utf-8")
     mac = hmac.new(
@@ -39,11 +39,11 @@ def sign_payload(payload: Dict[str, Any]) -> str:
 
 
 def verify_timestamps(ts: int, skew: int = 60) -> None:
-    """타임스탬프 유효성 검증.
+    """타임스탬프 유효성을 검증한다.
 
     Args:
-        ts: epoch seconds.
-        skew: 허용 오차(초).
+        ts (int): 요청에 포함된 epoch seconds.
+        skew (int): 허용 오차(초).
 
     Raises:
         HTTPException: 허용 범위를 벗어난 경우.

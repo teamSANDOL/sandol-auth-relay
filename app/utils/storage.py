@@ -1,41 +1,46 @@
 from __future__ import annotations
+import os
 import time
 from typing import Dict, Any, Optional
+from diskcache import FanoutCache
 from app.config import Config
 
-# 메모리 세션(운영에서는 Redis/DB를 권장)
-_SESS: Dict[str, Dict[str, Any]] = {}
+# Disk-backed 세션 스토리지(FanoutCache 기반, 기본 디렉터리는 프로젝트 루트/.cache/sessions)
+_UTILS_DIR = os.path.dirname(__file__)
+_DEFAULT_CACHE_DIR = os.path.abspath(os.path.join(_UTILS_DIR, "../..", ".cache", "sessions"))
+_CACHE_DIR = os.getenv("SESSION_CACHE_DIR", _DEFAULT_CACHE_DIR)
+_CACHE = FanoutCache(directory=_CACHE_DIR, shards=8)
 
 
 def sess_set(state: str, data: Dict[str, Any]) -> None:
-    """state 기반 세션 저장.
+    """state 키로 세션 데이터를 저장한다.
 
     Args:
-        state: 세션 키.
-        data: 저장 데이터.
+        state (str): 세션 식별 키.
+        data (Dict[str, Any]): 저장할 세션 데이터.
     """
-    _SESS[state] = data
+    _CACHE.set(state, data, expire=Config.STATE_TTL_SECONDS)
 
 
 def sess_pop(state: str) -> Optional[Dict[str, Any]]:
-    """state 기반 세션 조회 및 삭제.
+    """state 키로 세션을 조회하고 삭제한다.
 
     Args:
-        state: 세션 키.
+        state (str): 세션 식별 키.
 
     Returns:
-        저장 데이터 또는 None.
+        Optional[Dict[str, Any]]: 존재하면 저장 데이터, 없으면 None.
     """
-    return _SESS.pop(state, None)
+    return _CACHE.pop(state, default=None)
 
 
 def sess_expired(ts: int) -> bool:
-    """세션 만료 여부 판정.
+    """세션 만료 여부를 판정한다.
 
     Args:
-        ts: 생성 시각(epoch seconds).
+        ts (int): 세션 생성 시각(epoch seconds).
 
     Returns:
-        True 만료 / False 유효.
+        bool: 만료 시 True, 유효 시 False.
     """
     return (int(time.time()) - ts) > Config.STATE_TTL_SECONDS

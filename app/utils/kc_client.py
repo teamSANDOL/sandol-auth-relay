@@ -4,13 +4,13 @@ from keycloak import KeycloakOpenID
 
 
 def kc_client(cfg: Dict[str, Any]) -> KeycloakOpenID:
-    """KeycloakOpenID 클라이언트 생성.
+    """KeycloakOpenID 클라이언트를 생성한다.
 
     Args:
-        cfg: client 설정(dict).
+        cfg (Dict[str, Any]): 클라이언트 설정 딕셔너리.
 
     Returns:
-        KeycloakOpenID 인스턴스.
+        KeycloakOpenID: KeycloakOpenID 인스턴스.
     """
     return KeycloakOpenID(
         server_url=cfg["server_url"],
@@ -22,12 +22,12 @@ def kc_client(cfg: Dict[str, Any]) -> KeycloakOpenID:
 
 
 def kc_well_known(kc: KeycloakOpenID) -> Dict[str, Any]:
-    """Well-known OpenID Provider 메타데이터 조회.
+    """Well-known OpenID Provider 메타데이터를 조회한다.
 
     Args:
-        kc: KeycloakOpenID 인스턴스.
+        kc (KeycloakOpenID): KeycloakOpenID 인스턴스.
 
     Returns:
-        well-known JSON dict.
+        Dict[str, Any]: well-known JSON 메타데이터.
     """
     return kc.well_known()

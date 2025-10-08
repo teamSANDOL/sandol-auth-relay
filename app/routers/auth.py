@@ -27,16 +27,19 @@ router = APIRouter(tags=["auth-relay"])
 
 @router.post("/issue_login_link", response_model=IssueLinkRes)
 async def issue_login_link(body: IssueLinkReq) -> IssueLinkRes:
-    """로그인 링크(LIT) 발급.
+    """로그인 링크(LIT)를 발급한다.
 
     Args:
-        body: IssueLinkReq 요청 바디
+        body (IssueLinkReq): 로그인 링크 발급 요청 본문.
 
     Returns:
-        IssueLinkRes: 로그인 링크와 만료 시간.
+        IssueLinkRes: 생성된 로그인 링크와 만료 시간 정보.
 
     Raises:
         HTTPException: redirect_after가 허용되지 않는 경우.
+
+    HTTP Response:
+        200 OK: 로그인 링크 발급 성공 응답을 반환한다.
     """
     if body.redirect_after and not redirect_allowed(body.redirect_after):
         raise HTTPException(Config.HttpStatus.BAD_REQUEST, "redirect_after_not_allowed")
@@ -54,13 +57,19 @@ async def issue_login_link(body: IssueLinkReq) -> IssueLinkRes:
 
 @router.get("/login/{lit}")
 async def login_init(lit: str):
-    """인가 플로우 시작: LIT 검증 → state/nonce/PKCE 준비 → 인가 URL로 리다이렉트.
+    """인가 플로우를 시작해 인가 URL로 리다이렉트한다.
 
     Args:
-        lit: lit 값.
+        lit (str): 로그인 링크 토큰(LIT) 값.
 
     Returns:
-        RedirectResponse: Keycloak 인가 URL로 302.
+        RedirectResponse: Keycloak 인가 URL로 리다이렉트한다.
+
+    Raises:
+        HTTPException: LIT에 필수 클레임이 없거나 유효하지 않을 때.
+
+    HTTP Response:
+        302 Found: Keycloak 인가 URL로 리다이렉트한다.
     """
     data = decode_lit(lit)
     client_key = data.get("client_key")
@@ -106,14 +115,21 @@ async def login_init(lit: str):
 
 @router.get("/oidc/callback")
 async def oidc_callback(code: str, state: str):
-    """Keycloak 콜백 처리: code 교환 → 챗봇 서버에 Access Token 전달 → 최종 리다이렉트.
+    """Keycloak 콜백을 처리해 토큰 교환과 최종 리다이렉트를 수행한다.
 
     Args:
-        code: authorization code.
-        state: CSRF 방지 state.
+        code (str): Authorization Code.
+        state (str): CSRF 방지 state 값.
 
     Returns:
-        RedirectResponse|JSONResponse: 최종 리다이렉트 또는 에러 JSON.
+        RedirectResponse | JSONResponse: 성공 시 최종 리다이렉트, 실패 시 에러 JSON.
+
+    Raises:
+        HTTPException: state가 유효하지 않거나 토큰 교환이 실패할 때.
+
+    HTTP Response:
+        302 Found: redirect_after 또는 기본 경로로 리다이렉트한다.
+        502 Bad Gateway: 챗봇 서버 콜백 실패 시 JSON 에러를 반환한다.
     """
     sess = sess_pop(state)
     if not sess or sess_expired(sess["ts"]):
