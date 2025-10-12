@@ -6,6 +6,7 @@ import os
 import logging
 from typing import Any, Dict, List, Tuple
 from urllib.parse import urlparse
+import re
 
 # 현재 파일이 위치한 디렉터리 (config 폴더의 절대 경로)
 CONFIG_DIR = os.path.dirname(__file__)
@@ -81,7 +82,7 @@ def _secret_env_name(client_key: str) -> str:
     Returns:
         str: 표준화된 환경 변수 키.
     """
-    normalized = "".join(ch if ch.isalnum() else "_" for ch in client_key.upper())
+    normalized = re.sub(r"[^A-Z0-9]+", "_", client_key.upper())
     return f"{normalized}__SECRETS"
 
 
