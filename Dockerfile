@@ -8,7 +8,7 @@ COPY ./requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 코드 복사
-COPY ./ ./app
+COPY . .
 
 # 컨테이너 실행 시 기본 명령어 설정
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

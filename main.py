@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import uvicorn
 
+from app.routers import auth_relay_router
 from app.config.config import logger
 
 
@@ -18,9 +19,9 @@ async def lifespan(app: FastAPI):
     # 애플리케이션 종료 시 로그 출력
     logger.info("🛑 서비스 종료:")
 
-
 # lifespan 적용
-app = FastAPI(lifespan=lifespan, root_path="/auth-relay")
+app = FastAPI(title="Auth Relay", lifespan=lifespan, root_path="/relay")
+app.include_router(auth_relay_router)
 
 
 @app.get("/")
