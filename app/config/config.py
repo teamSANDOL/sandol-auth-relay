@@ -183,11 +183,9 @@ class Config:
         "RELAY_TO_CHATBOT_HMAC_SECRET", "dev-hmac-secret-please-change"
     )
 
-    # 내부 허용 리다이렉트(prefix 매칭). 필요에 맞게 구체화.
+    # 내부 허용 리다이렉트(prefix 매칭). 환경 변수로 설정, 기본값은 "/"만 허용.
     REDIRECT_ALLOWLIST: List[str] = [
-        "/",
-        "https://app.example.com",
-        "https://chat.example.com",
+        s.strip() for s in os.getenv("REDIRECT_ALLOWLIST", "/").split(",") if s.strip()
     ]
 
     CLIENTS: dict[str, dict[str, Any]] = _load_clients(BASE_URL)
