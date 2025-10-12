@@ -168,11 +168,19 @@ async def oidc_callback(code: str, state: str):
     headers = {"X-Relay-Signature": sign_payload(payload)}
 
     try:
-        async with httpx.AsyncClient(timeout=8.0) as cx:
-            r = await cx.post(sess["callback_url"], json=payload, headers=headers)
-            r.raise_for_status()
-    except Exception:
-        return JSONResponse({"error": "callback_failed"}, status_code=502)
+        async with httpx.AsyncClient(timeout=8.0) as http_client:
+            response = await http_client.post(
+                sess["callback_url"],
+                json=payload,
+                headers=headers,
+            )
+            response.raise_for_status()
+    except httpx.TimeoutException:
+        return JSONResponse({"error": "callback_timeout"}, status_code=502)
+    except httpx.HTTPStatusError:
+        return JSONResponse({"error": "callback_invalid_status"}, status_code=502)
+    except httpx.RequestError:
+        return JSONResponse({"error": "callback_request_error"}, status_code=502)
 
     # 최종 리다이렉트
     dest = sess.get("redirect_after") or "/"
