@@ -6,7 +6,7 @@ import httpx
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
 
-from app.config import Config
+from app.config import Config, logger
 from app.schemas import IssueLinkReq, IssueLinkRes
 from app.utils import (
     gen_code_verifier,
@@ -41,7 +41,17 @@ async def issue_login_link(body: IssueLinkReq) -> IssueLinkRes:
     HTTP Response:
         200 OK: 로그인 링크 발급 성공 응답을 반환한다.
     """
+    logger.info(
+        "issue_login_link: client_key=%s redirect_after=%s",
+        body.client_key,
+        body.redirect_after,
+    )
     if body.redirect_after and not redirect_allowed(body.redirect_after):
+        logger.warning(
+            "issue_login_link: redirect_after not allowed (client_key=%s, redirect_after=%s)",
+            body.client_key,
+            body.redirect_after,
+        )
         raise HTTPException(Config.HttpStatus.BAD_REQUEST, "redirect_after_not_allowed")
 
     cfg = resolve_client(body.client_key)
@@ -52,6 +62,11 @@ async def issue_login_link(body: IssueLinkReq) -> IssueLinkRes:
         redirect_after=body.redirect_after,
     )
     login_link = f"{Config.BASE_URL}/login/{lit}"
+    logger.info(
+        "issue_login_link: LIT issued (client_key=%s, expires_in=%s)",
+        body.client_key,
+        Config.STATE_TTL_SECONDS,
+    )
     return IssueLinkRes(login_link=login_link, expires_in=Config.STATE_TTL_SECONDS)
 
 
@@ -71,17 +86,23 @@ async def login_init(lit: str):
     HTTP Response:
         302 Found: Keycloak 인가 URL로 리다이렉트한다.
     """
+    logger.info("login_init: request received")
     data = decode_lit(lit)
     client_key = data.get("client_key")
     chatbot_user_id = data.get("chatbot_user_id")
     callback_url = data.get("callback_url")
     redirect_after = data.get("redirect_after")
     if not (client_key and chatbot_user_id and callback_url):
+        logger.warning("login_init: missing required claims")
         raise HTTPException(Config.HttpStatus.BAD_REQUEST, "missing_required_claims")
 
     cfg = resolve_client(client_key)
     kc = kc_client(cfg)
     wk = kc_well_known(kc)
+    logger.debug(
+        "login_init: discovered authorization_endpoint for client_key=%s",
+        client_key,
+    )
 
     # state/nonce/PKCE
     state = secrets.token_urlsafe(24)
@@ -95,6 +116,10 @@ async def login_init(lit: str):
         state=state,
         nonce=nonce,
         code_challenge=code_challenge,
+    )
+    logger.info(
+        "login_init: redirecting to authorization endpoint (client_key=%s)",
+        client_key,
     )
 
     # 세션 저장(메모리)
@@ -131,8 +156,10 @@ async def oidc_callback(code: str, state: str):
         302 Found: redirect_after 또는 기본 경로로 리다이렉트한다.
         502 Bad Gateway: 챗봇 서버 콜백 실패 시 JSON 에러를 반환한다.
     """
+    logger.info("oidc_callback: received (state redacted)")
     sess = sess_pop(state)
     if not sess or sess_expired(sess["ts"]):
+        logger.warning("oidc_callback: invalid or expired state")
         raise HTTPException(400, "invalid_or_expired_state")
 
     cfg = resolve_client(sess["client_key"])
@@ -148,11 +175,19 @@ async def oidc_callback(code: str, state: str):
             code_verifier=sess["code_verifier"],
         )
     except Exception as e:
+        logger.exception(
+            "oidc_callback: token exchange failed (client_key=%s)",
+            sess["client_key"],
+        )
         raise HTTPException(
             Config.HttpStatus.BAD_GATEWAY, "token_exchange_failed"
         ) from e
 
     if "access_token" not in token:
+        logger.error(
+            "oidc_callback: no access_token in token response (client_key=%s)",
+            sess["client_key"],
+        )
         raise HTTPException(Config.HttpStatus.BAD_GATEWAY, "no_access_token")
 
     # 챗봇 서버 콜백(Access Token 전달; 챗봇은 TE 수행)
@@ -168,6 +203,11 @@ async def oidc_callback(code: str, state: str):
     headers = {"X-Relay-Signature": sign_payload(payload)}
 
     try:
+        logger.info(
+            "oidc_callback: posting relay_access_token to chatbot callback (client_key=%s, callback_url=%s)",
+            sess["client_key"],
+            sess["callback_url"],
+        )
         async with httpx.AsyncClient(timeout=8.0) as http_client:
             response = await http_client.post(
                 sess["callback_url"],
@@ -176,14 +216,30 @@ async def oidc_callback(code: str, state: str):
             )
             response.raise_for_status()
     except httpx.TimeoutException:
+        logger.error(
+            "oidc_callback: callback timeout (client_key=%s, callback_url=%s)",
+            sess["client_key"],
+            sess["callback_url"],
+        )
         return JSONResponse({"error": "callback_timeout"}, status_code=502)
     except httpx.HTTPStatusError:
+        logger.error(
+            "oidc_callback: callback invalid status (client_key=%s, callback_url=%s)",
+            sess["client_key"],
+            sess["callback_url"],
+        )
         return JSONResponse({"error": "callback_invalid_status"}, status_code=502)
     except httpx.RequestError:
+        logger.error(
+            "oidc_callback: callback request error (client_key=%s, callback_url=%s)",
+            sess["client_key"],
+            sess["callback_url"],
+        )
         return JSONResponse({"error": "callback_request_error"}, status_code=502)
 
     # 최종 리다이렉트
     dest = sess.get("redirect_after") or "/"
     if not redirect_allowed(dest):
         dest = "/"
+    logger.info("oidc_callback: redirecting user to %s", dest)
     return RedirectResponse(dest, status_code=Config.HttpStatus.FOUND)
