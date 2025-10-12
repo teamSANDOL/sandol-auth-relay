@@ -180,6 +180,10 @@ class Config:
     LIT_AUDIENCE: str = os.getenv("LIT_AUDIENCE", "lit-consumer")
     STATE_TTL_SECONDS: int = int(os.getenv("STATE_TTL_SECONDS", "600"))
 
+    CHATBOT_CALLBACK_TIMEOUT_SECONDS: float = float(
+        os.getenv("CHATBOT_CALLBACK_TIMEOUT_SECONDS", "8.0")
+    )
+
     RELAY_TO_CHATBOT_HMAC_SECRET: str = os.getenv(
         "RELAY_TO_CHATBOT_HMAC_SECRET", "dev-hmac-secret-please-change"
     )

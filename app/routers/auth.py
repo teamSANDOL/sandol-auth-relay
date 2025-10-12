@@ -208,7 +208,9 @@ async def oidc_callback(code: str, state: str):
             sess["client_key"],
             sess["callback_url"],
         )
-        async with httpx.AsyncClient(timeout=8.0) as http_client:
+        async with httpx.AsyncClient(
+            timeout=Config.CHATBOT_CALLBACK_TIMEOUT_SECONDS
+        ) as http_client:
             response = await http_client.post(
                 sess["callback_url"],
                 json=payload,
