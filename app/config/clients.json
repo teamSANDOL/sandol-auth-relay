@@ -18,7 +18,7 @@
     "realm": "Sandori",
     "client_id": "myapp",
     "redirect_uri": "https://sandol.house.sio2.kr/relay/oidc/callback",
-    "client_secret": "89XgXBd6cem6IKys8j23Iuw4V1P8oaDn",
+    "client_secret": "${MYAPP_CLIENT_SECRET}",
     "issuer": "https://sandol.house.sio2.kr/auth/realms/Sandori"
   }
 }
