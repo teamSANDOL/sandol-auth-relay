@@ -82,7 +82,7 @@ def _secret_env_name(client_key: str) -> str:
     Returns:
         str: 표준화된 환경 변수 키.
     """
-    normalized = re.sub(r"[^A-Z0-9]+", "_", client_key.upper())
+    normalized = re.sub(r"[^A-Z0-9_]+", "_", client_key.upper())
     return f"{normalized}__SECRETS"
 
 
