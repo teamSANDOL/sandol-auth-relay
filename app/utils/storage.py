@@ -3,11 +3,10 @@ import os
 import time
 from typing import Dict, Any, Optional
 from diskcache import FanoutCache
-from app.config import Config
+from app.config.config import Config, SERVICE_DIR
 
 # Disk-backed 세션 스토리지(FanoutCache 기반, 기본 디렉터리는 프로젝트 루트/.cache/sessions)
-_UTILS_DIR = os.path.dirname(__file__)
-_DEFAULT_CACHE_DIR = os.path.abspath(os.path.join(_UTILS_DIR, "../..", ".cache", "sessions"))
+_DEFAULT_CACHE_DIR = os.path.abspath(os.path.join(SERVICE_DIR, ".cache", "sessions"))
 _CACHE_DIR = os.getenv("SESSION_CACHE_DIR", _DEFAULT_CACHE_DIR)
 _CACHE = FanoutCache(directory=_CACHE_DIR, shards=8)
 
