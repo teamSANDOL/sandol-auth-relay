@@ -49,7 +49,7 @@ CLIENT_KEY = os.getenv("CLIENT_KEY", "myapp")
 # 챗봇 서버의 공개 콜백 URL(= relay가 서버간 POST할 주소)
 # 예: https://chatbot.example.com/relay/callback  (로컬 테스트면 ngrok 등 필요)
 CHATBOT_RELAY_CALLBACK = os.getenv(
-    "CHATBOT_RELAY_CALLBACK", "http://172.30.1.102:8011/callback"
+    "CHATBOT_RELAY_CALLBACK", "http://localhost:8011/callback"
 )
 
 # --- 보안/검증 ---
