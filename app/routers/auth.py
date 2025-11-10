@@ -171,7 +171,7 @@ async def oidc_callback(code: str, state: str):
             grant_type="authorization_code",
             code=code,
             redirect_uri=cfg["redirect_uri"],
-            scope=cfg.get("scope", "openid"),
+            scope=cfg.get("scope", "openid offiline_access"),
             code_verifier=sess["code_verifier"],
         )
     except Exception as e:
@@ -189,14 +189,24 @@ async def oidc_callback(code: str, state: str):
             sess["client_key"],
         )
         raise HTTPException(Config.HttpStatus.BAD_GATEWAY, "no_access_token")
+    if "refresh_token" not in token:
+        logger.error(
+            "oidc_callback: no refresh_token (offline) in token response (client_key=%s)",
+            sess["client_key"],
+        )
+        raise HTTPException(Config.HttpStatus.BAD_GATEWAY, "no_offline_refresh_token")
 
-    # 챗봇 서버 콜백(Access Token 전달; 챗봇은 TE 수행)
+    # 2) 챗봇 서버 콜백으로 '오프라인 토큰' 전달  🔒
+    #    - 기존: relay_access_token만 전달 + 챗봇이 TE 수행  ❌ (offline 불가)
+    #    - 변경: 챗봇이 자신의 refresh flow로 AT 갱신  ✅
     payload = {
-        "relay_access_token": token["access_token"],
         "issuer": cfg["issuer"],
-        "aud": cfg["client_id"],
+        "aud": cfg["client_id"],  # 이 토큰의 클라이언트 (챗봇)
         "chatbot_user_id": sess["chatbot_user_id"],
         "client_key": sess["client_key"],
+        "relay_access_token": token["access_token"],  # 즉시 사용 가능
+        "offline_refresh_token": token["refresh_token"],  # ← 핵심: 챗봇 보관/갱신용
+        "expires_in": token.get("expires_in"),
         "ts": int(time.time()),
         "nonce": secrets.token_urlsafe(16),
     }
@@ -204,7 +214,7 @@ async def oidc_callback(code: str, state: str):
 
     try:
         logger.info(
-            "oidc_callback: posting relay_access_token to chatbot callback (client_key=%s, callback_url=%s)",
+            "oidc_callback: posting tokens to chatbot callback (client_key=%s, callback_url=%s)",
             sess["client_key"],
             sess["callback_url"],
         )
@@ -212,9 +222,7 @@ async def oidc_callback(code: str, state: str):
             timeout=Config.CHATBOT_CALLBACK_TIMEOUT_SECONDS
         ) as http_client:
             response = await http_client.post(
-                sess["callback_url"],
-                json=payload,
-                headers=headers,
+                sess["callback_url"], json=payload, headers=headers
             )
             response.raise_for_status()
     except httpx.TimeoutException:
@@ -239,7 +247,6 @@ async def oidc_callback(code: str, state: str):
         )
         return JSONResponse({"error": "callback_request_error"}, status_code=502)
 
-    # 최종 리다이렉트
     dest = sess.get("redirect_after") or "/"
     if not redirect_allowed(dest):
         dest = "/"
