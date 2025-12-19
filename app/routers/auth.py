@@ -19,7 +19,7 @@ from app.utils import (
     now_ts,
 )
 from app.utils.storage import sess_set, sess_pop, sess_expired
-from app.utils.kc_client import kc_client, kc_well_known
+from app.utils.kc_client import kc_well_known
 from app.utils.security import sign_payload
 
 router = APIRouter(tags=["auth-relay"])
@@ -54,7 +54,7 @@ async def issue_login_link(body: IssueLinkReq) -> IssueLinkRes:
         )
         raise HTTPException(Config.HttpStatus.BAD_REQUEST, "redirect_after_not_allowed")
 
-    cfg = resolve_client(body.client_key)
+    resolve_client(body.client_key)
     lit = make_lit(
         chatbot_user_id=body.chatbot_user_id,
         callback_url=str(body.callback_url),
@@ -97,7 +97,7 @@ async def login_init(lit: str):
         raise HTTPException(Config.HttpStatus.BAD_REQUEST, "missing_required_claims")
 
     cfg = resolve_client(client_key)
-    kc = kc_client(cfg)
+    kc = cfg.build_kc()
     wk = kc_well_known(kc)
     logger.debug(
         "login_init: discovered authorization_endpoint for client_key=%s",
@@ -163,17 +163,18 @@ async def oidc_callback(code: str, state: str):
         raise HTTPException(400, "invalid_or_expired_state")
 
     cfg = resolve_client(sess["client_key"])
-    kc = kc_client(cfg)
+    kc = cfg.build_kc()
 
     # code → token (PKCE)
     try:
         token = kc.token(
             grant_type="authorization_code",
             code=code,
-            redirect_uri=cfg["redirect_uri"],
-            scope=cfg.get("scope", "openid offiline_access"),
+            redirect_uri=cfg.redirect_uri,
+            scope="openid offiline_access",
             code_verifier=sess["code_verifier"],
         )
+        logger.info("oidc_callback token: %s", token)
     except Exception as e:
         logger.exception(
             "oidc_callback: token exchange failed (client_key=%s)",
@@ -200,13 +201,14 @@ async def oidc_callback(code: str, state: str):
     #    - 기존: relay_access_token만 전달 + 챗봇이 TE 수행  ❌ (offline 불가)
     #    - 변경: 챗봇이 자신의 refresh flow로 AT 갱신  ✅
     payload = {
-        "issuer": cfg["issuer"],
-        "aud": cfg["client_id"],  # 이 토큰의 클라이언트 (챗봇)
+        "issuer": cfg.issuer,
+        "aud": cfg.client_id,  # 이 토큰의 클라이언트 (챗봇)
         "chatbot_user_id": sess["chatbot_user_id"],
         "client_key": sess["client_key"],
         "relay_access_token": token["access_token"],  # 즉시 사용 가능
         "offline_refresh_token": token["refresh_token"],  # ← 핵심: 챗봇 보관/갱신용
         "expires_in": token.get("expires_in"),
+        "refresh_expires_in": token.get("refresh_expires_in"),
         "ts": int(time.time()),
         "nonce": secrets.token_urlsafe(16),
     }
@@ -217,6 +219,10 @@ async def oidc_callback(code: str, state: str):
             "oidc_callback: posting tokens to chatbot callback (client_key=%s, callback_url=%s)",
             sess["client_key"],
             sess["callback_url"],
+        )
+        logger.debug(
+            "oidc_callback: payload=%s",
+            payload,
         )
         async with httpx.AsyncClient(
             timeout=Config.CHATBOT_CALLBACK_TIMEOUT_SECONDS
@@ -241,9 +247,14 @@ async def oidc_callback(code: str, state: str):
         return JSONResponse({"error": "callback_invalid_status"}, status_code=502)
     except httpx.RequestError:
         logger.error(
-            "oidc_callback: callback request error (client_key=%s, callback_url=%s)",
+            "oidc_callback: callback request error (status=%s, client_key=%s, callback_url=%s)",
+            response.status_code,
             sess["client_key"],
             sess["callback_url"],
+        )
+        logger.error(
+            "oidc_callback: exception details: %s",
+            response.text,
         )
         return JSONResponse({"error": "callback_request_error"}, status_code=502)
 
