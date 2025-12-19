@@ -9,6 +9,8 @@ from urllib.parse import urlencode
 import jwt
 from fastapi import HTTPException
 from app.config import Config
+from app.utils.clients import get_client_registry, ClientConfig
+
 
 def now_ts() -> int:
     """현재 epoch seconds를 반환한다.
@@ -17,6 +19,7 @@ def now_ts() -> int:
         int: 현재 epoch seconds.
     """
     return int(time.time())
+
 
 def gen_code_verifier(n: int = 64) -> str:
     """PKCE code_verifier를 생성한다.
@@ -29,6 +32,7 @@ def gen_code_verifier(n: int = 64) -> str:
     """
     return base64.urlsafe_b64encode(secrets.token_bytes(n)).decode().rstrip("=")
 
+
 def code_challenge_s256(verifier: str) -> str:
     """PKCE code_challenge(S256)를 생성한다.
 
@@ -38,7 +42,12 @@ def code_challenge_s256(verifier: str) -> str:
     Returns:
         str: base64url(SHA-256(verifier))로 생성된 code_challenge.
     """
-    return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
+    return (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+        .decode()
+        .rstrip("=")
+    )
+
 
 def redirect_allowed(dest: Optional[str]) -> bool:
     """최종 리다이렉트 목적지를 allowlist로 검증한다.
@@ -56,24 +65,32 @@ def redirect_allowed(dest: Optional[str]) -> bool:
             return True
     return False
 
-def resolve_client(client_key: str) -> Dict[str, Any]:
+
+def resolve_client(client_key: str) -> ClientConfig:
     """client_key에 해당하는 클라이언트 설정을 조회한다.
 
     Args:
         client_key (str): 등록된 클라이언트 키.
 
     Returns:
-        Dict[str, Any]: 매칭된 클라이언트 설정.
+        ClientConfig: 매칭된 클라이언트 설정.
 
     Raises:
         HTTPException: 등록되지 않은 클라이언트 키인 경우.
     """
-    cfg = Config.CLIENTS.get(client_key)
+    cfg: ClientConfig = get_client_registry()[client_key]
     if not cfg:
         raise HTTPException(400, "unknown_client_key")
     return cfg
 
-def make_lit(*, chatbot_user_id: str, callback_url: str, client_key: str, redirect_after: Optional[str]) -> str:
+
+def make_lit(
+    *,
+    chatbot_user_id: str,
+    callback_url: str,
+    client_key: str,
+    redirect_after: Optional[str],
+) -> str:
     """로그인 링크 토큰(LIT)을 발급한다.
 
     Args:
@@ -99,6 +116,7 @@ def make_lit(*, chatbot_user_id: str, callback_url: str, client_key: str, redire
     }
     return jwt.encode(claims, Config.JWT_SECRET, algorithm="HS256")
 
+
 def decode_lit(lit: str) -> Dict[str, Any]:
     """LIT 토큰을 디코드하고 유효성을 검증한다.
 
@@ -112,6 +130,7 @@ def decode_lit(lit: str) -> Dict[str, Any]:
         HTTPException: 토큰이 유효하지 않거나 만료된 경우.
     """
     from jwt import InvalidTokenError
+
     try:
         data = jwt.decode(
             lit,
@@ -126,7 +145,15 @@ def decode_lit(lit: str) -> Dict[str, Any]:
     except InvalidTokenError:
         raise HTTPException(400, "invalid_or_expired_link")
 
-def build_authorize_url(*, auth_endpoint: str, cfg: Dict[str, Any], state: str, nonce: str, code_challenge: str) -> str:
+
+def build_authorize_url(
+    *,
+    auth_endpoint: str,
+    cfg: ClientConfig,
+    state: str,
+    nonce: str,
+    code_challenge: str,
+) -> str:
     """PKCE 정보를 포함한 인가 URL을 생성한다.
 
     Args:
@@ -140,10 +167,10 @@ def build_authorize_url(*, auth_endpoint: str, cfg: Dict[str, Any], state: str, 
         str: 사용자 리다이렉트용 인가 URL.
     """
     params = {
-        "client_id": cfg["client_id"],
-        "redirect_uri": cfg["redirect_uri"],
+        "client_id": cfg.client_id,
+        "redirect_uri": cfg.redirect_uri,
         "response_type": "code",
-        "scope": cfg.get("scope", "openid"),
+        "scope": "openid profile email offline_access",
         "state": state,
         "nonce": nonce,
         "code_challenge": code_challenge,
