@@ -5,11 +5,21 @@
 
 이 리포지토리는 내부 서비스 연동을 위한 참고 구현이며, 다양한 OIDC Relay 시나리오에도 응용할 수 있도록 설계되어 있습니다.
 
+## 인증 정책 문서 위치
+
+Auth-Relay 연동 이후의 MSA 인증 전파/JWKS 정책 문서는 `tuk_sandol_team` 레포의 `docs/`를 기준으로 관리합니다.
+
+- `docs/README.md`
+- `docs/auth-chatbot-auth-relay.md`
+- `docs/auth-msa-communication.md`
+- `docs/jwks-common-module-guideline.md`
+
 ---
 
 ## 목차
 
 - [Sandol Auth Relay](#sandol-auth-relay)
+  - [인증 정책 문서 위치](#인증-정책-문서-위치)
   - [목차](#목차)
   - [아키텍처 개요](#아키텍처-개요)
   - [인증 플로우](#인증-플로우)
