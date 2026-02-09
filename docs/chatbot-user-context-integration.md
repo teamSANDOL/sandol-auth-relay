@@ -1,5 +1,18 @@
 # 챗봇 사용자 컨텍스트 전파 가이드
 
+> [!WARNING]
+> 이 문서는 레거시 문서입니다. 현재 표준은 루트 `docs/` 문서를 따릅니다.
+>
+> - 표준 인덱스: `docs/README.md`
+> - MSA 통신 인증: `docs/auth-msa-communication.md`
+> - 챗봇/Auth-Relay 인증: `docs/auth-chatbot-auth-relay.md`
+> - JWKS 공통모듈: `docs/jwks-common-module-guideline.md`
+>
+> 정책 변경 요약:
+> - MSA 간 표준 헤더는 `X-User-ID`이며 값은 Keycloak `sub`입니다.
+> - Gateway의 사용자 HMAC(`X-Signature`) 검증은 폐기 대상입니다.
+> - 각 MSA가 JWKS로 Access Token을 직접 검증합니다.
+
 > 이 문서는 `docs/chatbot-integration-guide.md`에서 정의한 **Auth Relay ↔ Keycloak 연동 절차**를 기반으로, 챗봇이 획득한 인증 정보를 Sandol MSA 전반에 안전하게 전달하는 방법을 정리한 후속 문서입니다.
 
 * **대상 독자**: sandol 챗봇/백엔드 개발자, 신규 MSA 개발 팀, 인프라/보안 담당자

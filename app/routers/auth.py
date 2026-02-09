@@ -171,10 +171,21 @@ async def oidc_callback(code: str, state: str):
             grant_type="authorization_code",
             code=code,
             redirect_uri=cfg.redirect_uri,
-            scope="openid offiline_access",
+            scope="openid offline_access",
             code_verifier=sess["code_verifier"],
         )
         logger.info("oidc_callback token: %s", token)
+        # 디버깅용 상세 로깅: Offline Token 발급 여부 확인
+        logger.info(
+            "oidc_callback token details: "
+            "expires_in=%s, refresh_expires_in=%s, "
+            "has_refresh_token=%s, scope=%s, token_type=%s",
+            token.get("expires_in"),
+            token.get("refresh_expires_in"),  # 0 또는 큰 값이면 Offline Token
+            "refresh_token" in token,
+            token.get("scope"),
+            token.get("token_type"),
+        )
     except Exception as e:
         logger.exception(
             "oidc_callback: token exchange failed (client_key=%s)",
@@ -247,14 +258,9 @@ async def oidc_callback(code: str, state: str):
         return JSONResponse({"error": "callback_invalid_status"}, status_code=502)
     except httpx.RequestError:
         logger.error(
-            "oidc_callback: callback request error (status=%s, client_key=%s, callback_url=%s)",
-            response.status_code,
+            "oidc_callback: callback request error (client_key=%s, callback_url=%s)",
             sess["client_key"],
             sess["callback_url"],
-        )
-        logger.error(
-            "oidc_callback: exception details: %s",
-            response.text,
         )
         return JSONResponse({"error": "callback_request_error"}, status_code=502)
 
