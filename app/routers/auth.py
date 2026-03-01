@@ -174,9 +174,8 @@ async def oidc_callback(code: str, state: str):
             scope="openid offline_access",
             code_verifier=sess["code_verifier"],
         )
-        logger.info("oidc_callback token: %s", token)
         # 디버깅용 상세 로깅: Offline Token 발급 여부 확인
-        logger.info(
+        logger.debug(
             "oidc_callback token details: "
             "expires_in=%s, refresh_expires_in=%s, "
             "has_refresh_token=%s, scope=%s, token_type=%s",
@@ -226,14 +225,11 @@ async def oidc_callback(code: str, state: str):
     headers = {"X-Relay-Signature": sign_payload(payload)}
 
     try:
-        logger.info(
-            "oidc_callback: posting tokens to chatbot callback (client_key=%s, callback_url=%s)",
-            sess["client_key"],
-            sess["callback_url"],
-        )
+        logger.info("oidc_callback: posting tokens to chatbot callback")
+
         logger.debug(
-            "oidc_callback: payload=%s",
-            payload,
+            "oidc_callback: payload metadata prepared",
+            extra={"client_key": sess.get("client_key")},
         )
         async with httpx.AsyncClient(
             timeout=Config.CHATBOT_CALLBACK_TIMEOUT_SECONDS
