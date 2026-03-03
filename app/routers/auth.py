@@ -227,8 +227,8 @@ async def oidc_callback(code: str, state: str):
         logger.info("oidc_callback: posting tokens to chatbot callback")
 
         logger.debug(
-            "oidc_callback: payload metadata prepared",
-            extra={"client_key": sess.get("client_key")},
+            "oidc_callback: payload metadata prepared client_key=%s",
+            sess.get("client_key"),
         )
         async with httpx.AsyncClient(
             timeout=Config.CHATBOT_CALLBACK_TIMEOUT_SECONDS
