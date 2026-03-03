@@ -17,7 +17,8 @@ def resolve_client(client_key: str) -> ClientConfig:
     Raises:
         HTTPException: 등록되지 않은 클라이언트 키인 경우.
     """
-    cfg: ClientConfig = get_client_registry()[client_key]
+    registry = get_client_registry()
+    cfg: ClientConfig | None = registry.get(client_key)
     if not cfg:
         raise HTTPException(400, "unknown_client_key")
     return cfg
