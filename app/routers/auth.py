@@ -208,9 +208,7 @@ async def oidc_callback(code: str, state: str):
         )
         raise HTTPException(Config.HttpStatus.BAD_GATEWAY, "no_offline_refresh_token")
 
-    # 2) 챗봇 서버 콜백으로 '오프라인 토큰' 전달  🔒
-    #    - 기존: relay_access_token만 전달 + 챗봇이 TE 수행  ❌ (offline 불가)
-    #    - 변경: 챗봇이 자신의 refresh flow로 AT 갱신  ✅
+    # 2) 챗봇 서버 콜백으로 '오프라인 토큰' 전달
     payload = {
         "issuer": cfg.issuer,
         "aud": cfg.client_id,  # 이 토큰의 클라이언트 (챗봇)
