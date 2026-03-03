@@ -8,16 +8,16 @@ from fastapi.responses import RedirectResponse, JSONResponse
 
 from app.config import Config, logger
 from app.schemas import IssueLinkReq, IssueLinkRes
-from app.utils import (
+from app.utils.client_resolver import resolve_client
+from app.utils.oidc_helpers import (
     gen_code_verifier,
     code_challenge_s256,
     make_lit,
     decode_lit,
-    resolve_client,
-    redirect_allowed,
     build_authorize_url,
     now_ts,
 )
+from app.utils.redirects import redirect_allowed
 from app.utils.storage import sess_set, sess_pop, sess_expired
 from app.utils.kc_client import kc_well_known
 from app.utils.security import sign_payload
@@ -46,7 +46,9 @@ async def issue_login_link(body: IssueLinkReq) -> IssueLinkRes:
         body.client_key,
         body.redirect_after,
     )
-    if body.redirect_after and not redirect_allowed(body.redirect_after):
+    cfg = resolve_client(body.client_key)
+
+    if body.redirect_after and not redirect_allowed(cfg, body.redirect_after):
         logger.warning(
             "issue_login_link: redirect_after not allowed (client_key=%s, redirect_after=%s)",
             body.client_key,
@@ -54,7 +56,6 @@ async def issue_login_link(body: IssueLinkReq) -> IssueLinkRes:
         )
         raise HTTPException(Config.HttpStatus.BAD_REQUEST, "redirect_after_not_allowed")
 
-    resolve_client(body.client_key)
     lit = make_lit(
         chatbot_user_id=body.chatbot_user_id,
         callback_url=str(body.callback_url),
@@ -171,10 +172,20 @@ async def oidc_callback(code: str, state: str):
             grant_type="authorization_code",
             code=code,
             redirect_uri=cfg.redirect_uri,
-            scope="openid offiline_access",
+            scope="openid offline_access",
             code_verifier=sess["code_verifier"],
         )
-        logger.info("oidc_callback token: %s", token)
+        # 디버깅용 상세 로깅: Offline Token 발급 여부 확인
+        logger.debug(
+            "oidc_callback token details: "
+            "expires_in=%s, refresh_expires_in=%s, "
+            "has_refresh_token=%s, scope=%s, token_type=%s",
+            token.get("expires_in"),
+            token.get("refresh_expires_in"),  # 0 또는 큰 값이면 Offline Token
+            "refresh_token" in token,
+            token.get("scope"),
+            token.get("token_type"),
+        )
     except Exception as e:
         logger.exception(
             "oidc_callback: token exchange failed (client_key=%s)",
@@ -197,9 +208,7 @@ async def oidc_callback(code: str, state: str):
         )
         raise HTTPException(Config.HttpStatus.BAD_GATEWAY, "no_offline_refresh_token")
 
-    # 2) 챗봇 서버 콜백으로 '오프라인 토큰' 전달  🔒
-    #    - 기존: relay_access_token만 전달 + 챗봇이 TE 수행  ❌ (offline 불가)
-    #    - 변경: 챗봇이 자신의 refresh flow로 AT 갱신  ✅
+    # 2) 챗봇 서버 콜백으로 '오프라인 토큰' 전달
     payload = {
         "issuer": cfg.issuer,
         "aud": cfg.client_id,  # 이 토큰의 클라이언트 (챗봇)
@@ -215,14 +224,11 @@ async def oidc_callback(code: str, state: str):
     headers = {"X-Relay-Signature": sign_payload(payload)}
 
     try:
-        logger.info(
-            "oidc_callback: posting tokens to chatbot callback (client_key=%s, callback_url=%s)",
-            sess["client_key"],
-            sess["callback_url"],
-        )
+        logger.info("oidc_callback: posting tokens to chatbot callback")
+
         logger.debug(
-            "oidc_callback: payload=%s",
-            payload,
+            "oidc_callback: payload metadata prepared client_key=%s",
+            sess.get("client_key"),
         )
         async with httpx.AsyncClient(
             timeout=Config.CHATBOT_CALLBACK_TIMEOUT_SECONDS
@@ -247,19 +253,14 @@ async def oidc_callback(code: str, state: str):
         return JSONResponse({"error": "callback_invalid_status"}, status_code=502)
     except httpx.RequestError:
         logger.error(
-            "oidc_callback: callback request error (status=%s, client_key=%s, callback_url=%s)",
-            response.status_code,
+            "oidc_callback: callback request error (client_key=%s, callback_url=%s)",
             sess["client_key"],
             sess["callback_url"],
-        )
-        logger.error(
-            "oidc_callback: exception details: %s",
-            response.text,
         )
         return JSONResponse({"error": "callback_request_error"}, status_code=502)
 
     dest = sess.get("redirect_after") or "/"
-    if not redirect_allowed(dest):
+    if not redirect_allowed(cfg, dest, policy_key="callback_allowlist"):
         dest = "/"
     logger.info("oidc_callback: redirecting user to %s", dest)
     return RedirectResponse(dest, status_code=Config.HttpStatus.FOUND)
