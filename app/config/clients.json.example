@@ -1,0 +1,32 @@
+{
+  "sandol-kakao-bot": {
+    "client_id": "sandol-kakao-bot",
+    "realm": "Sandori",
+    "server_url": "https://example.com/auth/",
+    "redirect_uri": "https://example.com/relay/oidc/callback",
+    "issuer": "https://example.com/auth/realms/Sandori",
+    "client_secret": "<SET_IN_ENV_OR_LOCAL_CONFIG>",
+    "redirect_after_allowlist": ["/", "https://example.com/"],
+    "callback_allowlist": ["/", "/kakao-bot/users/callback"]
+  },
+  "discord-bot": {
+    "client_id": "sandol-discord-bot",
+    "realm": "Sandori",
+    "server_url": "https://example.com/auth/",
+    "redirect_uri": "https://example.com/relay/oidc/callback",
+    "issuer": "https://example.com/auth/realms/Sandori",
+    "client_secret": "<SET_IN_ENV_OR_LOCAL_CONFIG>",
+    "redirect_after_allowlist": ["/", "https://example.com/"],
+    "callback_allowlist": ["/"]
+  },
+  "myapp": {
+    "client_id": "myapp",
+    "realm": "Sandori",
+    "server_url": "https://example.com/auth/",
+    "redirect_uri": "https://example.com/relay/oidc/callback",
+    "issuer": "https://example.com/auth/realms/Sandori",
+    "client_secret": "<SET_IN_ENV_OR_LOCAL_CONFIG>",
+    "redirect_after_allowlist": ["/", "https://example.com/"],
+    "callback_allowlist": ["/"]
+  }
+}
