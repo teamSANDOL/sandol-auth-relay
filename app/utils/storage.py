@@ -43,3 +43,18 @@ def sess_expired(ts: int) -> bool:
         bool: 만료 시 True, 유효 시 False.
     """
     return (int(time.time()) - ts) > Config.STATE_TTL_SECONDS
+
+
+def sess_delete_by_chatbot_user_id(chatbot_user_id: str) -> int:
+    deleted = 0
+
+    for state in list(_CACHE):
+        session = _CACHE.get(state)
+        if (
+            isinstance(session, dict)
+            and session.get("chatbot_user_id") == chatbot_user_id
+        ):
+            if _CACHE.delete(state):
+                deleted += 1
+
+    return deleted
