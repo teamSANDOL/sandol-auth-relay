@@ -6,8 +6,10 @@
     "redirect_uri": "https://example.com/relay/oidc/callback",
     "issuer": "https://example.com/auth/realms/Sandori",
     "client_secret": "<SET_IN_ENV_OR_LOCAL_CONFIG>",
-    "redirect_after_allowlist": ["/", "https://example.com/"],
-    "callback_allowlist": ["/", "/kakao-bot/users/callback"]
+    "redirect_after_allowlist": ["/"],
+    "callback_url_allowlist": [
+      "https://example.com/kakao-bot/users/callback"
+    ]
   },
   "discord-bot": {
     "client_id": "sandol-discord-bot",
@@ -16,8 +18,10 @@
     "redirect_uri": "https://example.com/relay/oidc/callback",
     "issuer": "https://example.com/auth/realms/Sandori",
     "client_secret": "<SET_IN_ENV_OR_LOCAL_CONFIG>",
-    "redirect_after_allowlist": ["/", "https://example.com/"],
-    "callback_allowlist": ["/"]
+    "redirect_after_allowlist": ["/"],
+    "callback_url_allowlist": [
+      "https://example.com/discord-bot/users/callback"
+    ]
   },
   "myapp": {
     "client_id": "myapp",
@@ -26,7 +30,9 @@
     "redirect_uri": "https://example.com/relay/oidc/callback",
     "issuer": "https://example.com/auth/realms/Sandori",
     "client_secret": "<SET_IN_ENV_OR_LOCAL_CONFIG>",
-    "redirect_after_allowlist": ["/", "https://example.com/"],
-    "callback_allowlist": ["/"]
+    "redirect_after_allowlist": ["/"],
+    "callback_url_allowlist": [
+      "https://example.com/myapp/users/callback"
+    ]
   }
 }
