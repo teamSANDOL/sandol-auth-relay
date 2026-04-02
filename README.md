@@ -67,8 +67,9 @@ Auth-Relay 연동 이후의 MSA 인증 전파/JWKS 정책 문서는 `tuk_sandol_
 
 1. **로그인 링크 요청 (`POST /issue_login_link`)**
 
-   - 챗봇 서버가 사용자 ID, 콜백 URL, 클라이언트 키 등을 담아 Relay에 요청합니다.
-   - Relay는 JWT 기반 LIT(Login Initiation Token)을 생성하고 로그인 URL을 반환합니다.
+    - 챗봇 서버가 사용자 ID, 콜백 URL, 클라이언트 키 등을 담아 Relay에 요청합니다.
+    - `callback_url`은 `callback_url_allowlist`와 absolute URL exact match여야 하며, `redirect_after`는 safe relative path + `redirect_after_allowlist` 정책을 따릅니다.
+    - Relay는 JWT 기반 LIT(Login Initiation Token)을 생성하고 로그인 URL을 반환합니다.
 
 2. **사용자 로그인 (`GET /login/{lit}`)**
 
@@ -101,7 +102,8 @@ Auth-Relay 연동 이후의 MSA 인증 전파/JWKS 정책 문서는 `tuk_sandol_
 
 5. **사용자 최종 리다이렉트**
 
-   - Relay는 사용자의 브라우저를 `redirect_after` 경로(허용 목록 내)로 리다이렉트합니다.
+    - Relay는 사용자의 브라우저를 `redirect_after` 경로(허용 목록 내)로 리다이렉트합니다.
+    - 허용되지 않은 `redirect_after`는 `/`로 fallback됩니다.
 
 ---
 
@@ -167,6 +169,10 @@ docker-compose.yml       # 로컬 테스트용
     "client_id": "kakao-bot",
     "redirect_uri": "{BASE_URL}/oidc/callback",
     "issuer": "https://auth.example.com/realms/example",
+    "callback_url_allowlist": [
+      "https://chatbot.example.com/users/callback"
+    ],
+    "redirect_after_allowlist": ["/", "/login"],
     "scope": "openid offline_access"
   }
 }
