@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 from keycloak import KeycloakOpenID
 
 from app.config import Config, logger
+from app.utils.url_validation import normalize_absolute_url
 
 client_registry: ClientRegistry | None = None  # 모듈 상단
 
@@ -51,23 +52,6 @@ def _derive_from_issuer(issuer: str) -> Tuple[str, str]:
 def _secret_env_name(client_key: str) -> str:
     normalized = re.sub(r"[^A-Z0-9_]+", "_", client_key.upper())
     return f"{normalized}__SECRETS"
-
-
-def _is_valid_absolute_url(value: str) -> bool:
-    try:
-        parsed = urlparse(value)
-    except ValueError:
-        return False
-
-    if parsed.scheme not in {"http", "https"}:
-        return False
-    if not parsed.netloc:
-        return False
-    if parsed.fragment:
-        return False
-    return True
-
-
 @dataclass
 class ClientConfig:
     """Keycloak 클라이언트 한 개에 대한 설정/상태 래퍼."""
@@ -236,8 +220,8 @@ class ClientRegistry:
                 errors.append(f"[{key}] callback_url_allowlist missing or empty")
             else:
                 for callback_url in callback_allowlist:
-                    if not isinstance(callback_url, str) or not _is_valid_absolute_url(
-                        callback_url
+                    if not isinstance(callback_url, str) or (
+                        normalize_absolute_url(callback_url) is None
                     ):
                         errors.append(
                             f"[{key}] invalid callback URL in callback_url_allowlist"

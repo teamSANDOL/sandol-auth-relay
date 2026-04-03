@@ -55,3 +55,18 @@ def test_validate_rejects_invalid_callback_url() -> None:
 
     with pytest.raises(RuntimeError, match="invalid callback URL"):
         registry.validate()
+
+
+def test_validate_rejects_callback_url_with_invalid_port() -> None:
+    registry = make_registry(
+        make_client_config(
+            extra={
+                "callback_url_allowlist": [
+                    "https://sandol.sio2.kr:99999/kakao-bot/users/callback"
+                ]
+            }
+        )
+    )
+
+    with pytest.raises(RuntimeError, match="invalid callback URL"):
+        registry.validate()
