@@ -17,7 +17,7 @@ from app.utils.oidc_helpers import (
     build_authorize_url,
     now_ts,
 )
-from app.utils.redirects import redirect_allowed
+from app.utils.redirects import callback_url_allowed, redirect_allowed
 from app.utils.storage import sess_set, sess_pop, sess_expired
 from app.utils.kc_client import kc_well_known
 from app.utils.security import sign_payload
@@ -48,6 +48,15 @@ async def issue_login_link(body: IssueLinkReq) -> IssueLinkRes:
     )
     cfg = resolve_client(body.client_key)
 
+    callback_url = str(body.callback_url)
+    if not callback_url_allowed(cfg, callback_url):
+        logger.warning(
+            "issue_login_link: callback_url not allowed (client_key=%s, callback_url=%s)",
+            body.client_key,
+            callback_url,
+        )
+        raise HTTPException(Config.HttpStatus.BAD_REQUEST, "callback_url_not_allowed")
+
     if body.redirect_after and not redirect_allowed(cfg, body.redirect_after):
         logger.warning(
             "issue_login_link: redirect_after not allowed (client_key=%s, redirect_after=%s)",
@@ -58,7 +67,7 @@ async def issue_login_link(body: IssueLinkReq) -> IssueLinkRes:
 
     lit = make_lit(
         chatbot_user_id=body.chatbot_user_id,
-        callback_url=str(body.callback_url),
+        callback_url=callback_url,
         client_key=body.client_key,
         redirect_after=body.redirect_after,
     )
@@ -260,7 +269,7 @@ async def oidc_callback(code: str, state: str):
         return JSONResponse({"error": "callback_request_error"}, status_code=502)
 
     dest = sess.get("redirect_after") or "/"
-    if not redirect_allowed(cfg, dest, policy_key="callback_allowlist"):
+    if not redirect_allowed(cfg, dest, policy_key="redirect_after_allowlist"):
         dest = "/"
     logger.info("oidc_callback: redirecting user to %s", dest)
     return RedirectResponse(dest, status_code=Config.HttpStatus.FOUND)

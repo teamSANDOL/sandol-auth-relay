@@ -6,7 +6,7 @@ import traceback
 from fastapi import FastAPI, Request
 import uvicorn
 
-from app.routers import auth_relay_router
+from app.routers import auth_relay_router, webhook_router
 from app.config import logger
 from app.utils.clients import client_registry_init
 
@@ -27,6 +27,7 @@ async def lifespan(app: FastAPI):
 # lifespan 적용
 app = FastAPI(title="Auth Relay", lifespan=lifespan, root_path="/relay")
 app.include_router(auth_relay_router)
+app.include_router(webhook_router)
 
 
 @app.get("/")

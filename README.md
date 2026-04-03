@@ -34,6 +34,7 @@ Auth-Relay 연동 이후의 MSA 인증 전파/JWKS 정책 문서는 `tuk_sandol_
     - [`POST /issue_login_link`](#post-issue_login_link)
     - [`GET /login/{lit}`](#get-loginlit)
     - [`GET /oidc/callback`](#get-oidccallback)
+    - [`GET/POST /webhooks/kakao/unlink`](#getpost-webhookskakaounlink)
   - [챗봇 서버 토큰 관리 가이드](#챗봇-서버-토큰-관리-가이드)
   - [토큰 서명 및 검증](#토큰-서명-및-검증)
   - [세션 스토리지](#세션-스토리지)
@@ -66,8 +67,9 @@ Auth-Relay 연동 이후의 MSA 인증 전파/JWKS 정책 문서는 `tuk_sandol_
 
 1. **로그인 링크 요청 (`POST /issue_login_link`)**
 
-   - 챗봇 서버가 사용자 ID, 콜백 URL, 클라이언트 키 등을 담아 Relay에 요청합니다.
-   - Relay는 JWT 기반 LIT(Login Initiation Token)을 생성하고 로그인 URL을 반환합니다.
+    - 챗봇 서버가 사용자 ID, 콜백 URL, 클라이언트 키 등을 담아 Relay에 요청합니다.
+    - `callback_url`은 `callback_url_allowlist`와 absolute URL exact match여야 하며, `redirect_after`는 safe relative path + `redirect_after_allowlist` 정책을 따릅니다.
+    - Relay는 JWT 기반 LIT(Login Initiation Token)을 생성하고 로그인 URL을 반환합니다.
 
 2. **사용자 로그인 (`GET /login/{lit}`)**
 
@@ -100,7 +102,8 @@ Auth-Relay 연동 이후의 MSA 인증 전파/JWKS 정책 문서는 `tuk_sandol_
 
 5. **사용자 최종 리다이렉트**
 
-   - Relay는 사용자의 브라우저를 `redirect_after` 경로(허용 목록 내)로 리다이렉트합니다.
+    - Relay는 사용자의 브라우저를 `redirect_after` 경로(허용 목록 내)로 리다이렉트합니다.
+    - 허용되지 않은 `redirect_after`는 `/`로 fallback됩니다.
 
 ---
 
@@ -147,6 +150,9 @@ docker-compose.yml       # 로컬 테스트용
 | `BASE_URL`                     | Relay의 외부 접근 URL                  | `https://relay.example.com`     |
 | `JWT_SECRET`                   | LIT 서명용 HS256 키                   | `dev-secret-please-change`      |
 | `RELAY_TO_CHATBOT_HMAC_SECRET` | 챗봇 서버로 전달 시 HMAC 서명용 시크릿          | `dev-hmac-secret-please-change` |
+| `KAKAO_BOT_APP_ID`             | 카카오 연결 해제 웹훅 app_id 검증 값             | `""`                            |
+| `KAKAO_WEBHOOK_PRIMARY_ADMIN_KEY` | 카카오 연결 해제 웹훅 대표 어드민 키          | `""`                            |
+| `KAKAO_WEBHOOK_ALLOWED_ADMIN_KEYS` | 허용할 카카오 어드민 키 목록(콤마 구분)       | `""`                            |
 | `STATE_TTL_SECONDS`            | state/nonce/code_verifier TTL (초) | `600`                           |
 | `DEBUG`                        | `true`일 경우 DEBUG 로그 출력            | `false`                         |
 | `SESSION_CACHE_DIR`            | diskcache 저장 위치                   | `.cache/sessions`               |
@@ -163,6 +169,10 @@ docker-compose.yml       # 로컬 테스트용
     "client_id": "kakao-bot",
     "redirect_uri": "{BASE_URL}/oidc/callback",
     "issuer": "https://auth.example.com/realms/example",
+    "callback_url_allowlist": [
+      "https://chatbot.example.com/users/callback"
+    ],
+    "redirect_after_allowlist": ["/", "/login"],
     "scope": "openid offline_access"
   }
 }
@@ -214,6 +224,14 @@ docker compose up --build
 - Keycloak에서 Authorization Code와 state를 전달받습니다.
 - Relay는 Code를 교환하여 **Access Token + Offline Refresh Token**을 발급받고, 챗봇 서버에 POST합니다.
 - 챗봇 서버는 Offline Token을 저장하고 Refresh Flow로 Access Token을 갱신합니다.
+
+### `GET/POST /webhooks/kakao/unlink`
+
+- 카카오 OAuth2.0 Provider의 연결 해제 웹훅을 수신하며 `GET`, `POST` 모두 처리합니다.
+- 인증 헤더는 `Authorization: KakaoAK {PRIMARY_ADMIN_KEY}` 형식이어야 하며, 대표 어드민 키와 검증합니다.
+- 필수 파라미터는 `app_id`, `user_id`, `referrer_type`이며 `group_user_token`은 선택입니다.
+- 모든 경우(사용자 없음/오류 포함) 3초 이내 `200 OK`로 응답합니다. 응답 본문은 사용하지 않습니다.
+- 유효한 요청이면 백그라운드로 사용자 연결 해제 후속처리를 수행하며, 현재 구현은 해당 `user_id`의 relay 세션을 정리합니다.
 
 ---
 

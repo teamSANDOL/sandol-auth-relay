@@ -1,8 +1,12 @@
+"""Redirect and callback URL policy helpers."""
+
 from __future__ import annotations
+
 from typing import Optional
 from urllib.parse import urlsplit
 
 from app.utils.clients import ClientConfig
+from app.utils.url_validation import normalize_absolute_url
 
 
 def _is_safe_relative_path(path: str) -> bool:
@@ -57,5 +61,33 @@ def redirect_allowed(
         if not _is_safe_relative_path(prefix):
             continue
         if dest.startswith(prefix):
+            return True
+    return False
+
+
+def callback_url_allowed(
+    cfg: ClientConfig,
+    callback_url: Optional[str],
+    policy_key: str = "callback_url_allowlist",
+) -> bool:
+    """Return whether the callback URL exactly matches the client allowlist."""
+    if not callback_url:
+        return False
+
+    normalized_input = normalize_absolute_url(callback_url)
+    if not normalized_input:
+        return False
+
+    allowlist = cfg.extra.get(policy_key, [])
+    if not isinstance(allowlist, list) or not allowlist:
+        return False
+
+    for allowed in allowlist:
+        if not isinstance(allowed, str):
+            continue
+        normalized_allowed = normalize_absolute_url(allowed)
+        if not normalized_allowed:
+            continue
+        if normalized_input == normalized_allowed:
             return True
     return False

@@ -55,6 +55,16 @@ class Config:
         "RELAY_TO_CHATBOT_HMAC_SECRET", "dev-hmac-secret-please-change"
     )
 
+    KAKAO_BOT_APP_ID: str = os.getenv("KAKAO_BOT_APP_ID", "")
+    KAKAO_WEBHOOK_PRIMARY_ADMIN_KEY: str = os.getenv(
+        "KAKAO_WEBHOOK_PRIMARY_ADMIN_KEY", ""
+    )
+    KAKAO_WEBHOOK_ALLOWED_ADMIN_KEYS: List[str] = [
+        s.strip()
+        for s in os.getenv("KAKAO_WEBHOOK_ALLOWED_ADMIN_KEYS", "").split(",")
+        if s.strip()
+    ]
+
     # 내부 허용 리다이렉트(prefix 매칭). 환경 변수로 설정, 기본값은 "/"만 허용.
     REDIRECT_ALLOWLIST: List[str] = [
         s.strip() for s in os.getenv("REDIRECT_ALLOWLIST", "/").split(",") if s.strip()
