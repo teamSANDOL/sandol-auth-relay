@@ -60,6 +60,15 @@ def test_callback_url_allowed_rejects_fragment_url() -> None:
     )
 
 
+def test_callback_url_allowed_rejects_invalid_port_without_error() -> None:
+    cfg = make_client_config()
+
+    assert not callback_url_allowed(
+        cfg,
+        "https://sandol.sio2.kr:99999/kakao-bot/users/callback",
+    )
+
+
 def test_redirect_allowed_accepts_safe_relative_path() -> None:
     cfg = make_client_config(redirect_after_allowlist=["/", "/login"])
 

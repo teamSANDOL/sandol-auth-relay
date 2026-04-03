@@ -1,8 +1,12 @@
+"""Redirect and callback URL policy helpers."""
+
 from __future__ import annotations
+
 from typing import Optional
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from app.utils.clients import ClientConfig
+from app.utils.url_validation import normalize_absolute_url
 
 
 def _is_safe_relative_path(path: str) -> bool:
@@ -61,40 +65,16 @@ def redirect_allowed(
     return False
 
 
-def _normalize_absolute_url(url: str) -> str | None:
-    parsed = urlsplit(url)
-    if parsed.scheme not in {"http", "https"}:
-        return None
-    if not parsed.netloc:
-        return None
-    if parsed.fragment:
-        return None
-
-    host = parsed.hostname.lower() if parsed.hostname else ""
-    if not host:
-        return None
-
-    port = parsed.port
-    if port is None:
-        netloc = host
-    else:
-        default_http = parsed.scheme == "http" and port == 80
-        default_https = parsed.scheme == "https" and port == 443
-        netloc = host if (default_http or default_https) else f"{host}:{port}"
-
-    path = parsed.path or "/"
-    return urlunsplit((parsed.scheme, netloc, path, parsed.query, ""))
-
-
 def callback_url_allowed(
     cfg: ClientConfig,
     callback_url: Optional[str],
     policy_key: str = "callback_url_allowlist",
 ) -> bool:
+    """Return whether the callback URL exactly matches the client allowlist."""
     if not callback_url:
         return False
 
-    normalized_input = _normalize_absolute_url(callback_url)
+    normalized_input = normalize_absolute_url(callback_url)
     if not normalized_input:
         return False
 
@@ -105,7 +85,7 @@ def callback_url_allowed(
     for allowed in allowlist:
         if not isinstance(allowed, str):
             continue
-        normalized_allowed = _normalize_absolute_url(allowed)
+        normalized_allowed = normalize_absolute_url(allowed)
         if not normalized_allowed:
             continue
         if normalized_input == normalized_allowed:
