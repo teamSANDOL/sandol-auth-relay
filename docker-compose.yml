@@ -3,6 +3,8 @@ services:
     container_name: auth-relay-app
     build: .
     restart: always
+    volumes:
+      - ./app/config/clients.json:/app/app/config/clients.json:ro
     networks:
       - sandol-network
 
