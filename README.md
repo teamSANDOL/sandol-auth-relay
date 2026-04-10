@@ -136,6 +136,9 @@ docker-compose.yml       # 로컬 테스트용
 - [uv](https://github.com/astral-sh/uv)
 - Keycloak Realm 및 클라이언트 설정
 
+  - 루트 compose에서는 `.env`의 `SERVICE_DOMAIN`이 Keycloak `KC_HOSTNAME`으로 주입됩니다.
+  - 변수명을 `KC_HOSTNAME`으로 두지 않은 이유는 같은 도메인 값을 Keycloak 외 다른 서비스 설정에서도 재사용할 수 있도록 공통 이름으로 관리하기 위해서입니다.
+
   - **Standard Flow Enabled**
   - **Redirect URI**에 Relay 콜백 등록
   - **Client Scopes**에 `offline_access` 추가
