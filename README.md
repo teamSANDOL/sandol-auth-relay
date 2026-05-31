@@ -160,6 +160,12 @@ docker-compose.yml       # 로컬 테스트용
 | `DEBUG`                        | `true`일 경우 DEBUG 로그 출력            | `false`                         |
 | `SESSION_CACHE_DIR`            | diskcache 저장 위치                   | `.cache/sessions`               |
 
+로컬 실행 전 아래처럼 예시 파일을 복사해 `.env`를 만들고, `JWT_SECRET`/`RELAY_TO_CHATBOT_HMAC_SECRET` 등 시크릿 값을 실제 운영 값으로 교체하세요.
+
+```bash
+cp .env.example .env
+```
+
 ---
 
 ## 클라이언트 설정 (`app/config/clients.json`)
