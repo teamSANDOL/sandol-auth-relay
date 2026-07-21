@@ -268,8 +268,11 @@ async def oidc_callback(code: str, state: str):
         )
         return JSONResponse({"error": "callback_request_error"}, status_code=502)
 
-    dest = sess.get("redirect_after") or "/"
+    # 로그인 완료 후 기본 목적지: 게이트웨이가 서빙하는 정적 "로그인 완료" 페이지.
+    # redirect_after가 지정되고 allowlist를 통과한 경우에만 해당 목적지로 보낸다.
+    default_dest = "/login-complete/"
+    dest = sess.get("redirect_after") or default_dest
     if not redirect_allowed(cfg, dest, policy_key="redirect_after_allowlist"):
-        dest = "/"
+        dest = default_dest
     logger.info("oidc_callback: redirecting user to %s", dest)
     return RedirectResponse(dest, status_code=Config.HttpStatus.FOUND)
