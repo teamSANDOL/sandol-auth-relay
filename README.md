@@ -35,8 +35,10 @@ Auth-Relay 연동 이후의 MSA 인증 전파/JWKS 정책 문서는 `tuk_sandol_
     - [`GET /login/{lit}`](#get-loginlit)
     - [`GET /oidc/callback`](#get-oidccallback)
     - [`GET/POST /webhooks/kakao/unlink`](#getpost-webhookskakaounlink)
+    - [`POST /internal/account-deletions`](#post-internalaccount-deletions)
   - [챗봇 서버 토큰 관리 가이드](#챗봇-서버-토큰-관리-가이드)
   - [토큰 서명 및 검증](#토큰-서명-및-검증)
+  - [탈퇴 정보 저장소](#탈퇴-정보-저장소)
   - [세션 스토리지](#세션-스토리지)
   - [개발 가이드](#개발-가이드)
   - [트러블슈팅](#트러블슈팅)
@@ -157,6 +159,9 @@ docker-compose.yml       # 로컬 테스트용
 | `KAKAO_WEBHOOK_PRIMARY_ADMIN_KEY` | 카카오 연결 해제 웹훅 대표 어드민 키          | `""`                            |
 | `KAKAO_WEBHOOK_ALLOWED_ADMIN_KEYS` | 허용할 카카오 어드민 키 목록(콤마 구분)       | `""`                            |
 | `STATE_TTL_SECONDS`            | state/nonce/code_verifier TTL (초) | `600`                           |
+| `SANDOL_DELETION_KEY_ID`       | 탈퇴 정보 키 ID (Keycloak과 같은 값)     | `v1`                            |
+| `SANDOL_DELETION_KEY`          | 탈퇴 정보 AES-256 키, 32바이트 Base64 (Keycloak과 같은 값) | `""` (없으면 503) |
+| `DELETION_STORE_DIR`           | 탈퇴 정보 저장 위치                     | `.cache/deletions`              |
 | `DEBUG`                        | `true`일 경우 DEBUG 로그 출력            | `false`                         |
 | `SESSION_CACHE_DIR`            | diskcache 저장 위치                   | `.cache/sessions`               |
 
@@ -242,6 +247,21 @@ docker compose up --build
 - 모든 경우(사용자 없음/오류 포함) 3초 이내 `200 OK`로 응답합니다. 응답 본문은 사용하지 않습니다.
 - 유효한 요청이면 백그라운드로 사용자 연결 해제 후속처리를 수행하며, 현재 구현은 해당 `user_id`의 relay 세션을 정리합니다.
 
+### `POST /internal/account-deletions`
+
+- Keycloak(user-deletion 확장)이 계정 삭제 직전에 내부망으로 호출합니다. 운영 주소는 `http://auth-relay:8000/relay/internal/account-deletions`입니다.
+- 본문은 AES-256-GCM 암호문이며 `{"kid": "v1", "iv": "<base64>", "ciphertext": "<base64>"}` 형식입니다.
+- 검증과 저장까지만 수행합니다. Apple 토큰 폐기, 카카오 연결 해제 등 후속 처리는 아직 구현되어 있지 않습니다.
+
+| 상황 | 응답 |
+| --- | --- |
+| 저장 성공, 또는 같은 사용자의 중복 요청 (첫 저장 유지) | `202 {"event_id": ...}` |
+| 게이트웨이를 거친 요청 (`X-Forwarded-For` 또는 `X-Real-IP` 있음) | `404` |
+| 키가 없거나 형식이 틀림 | `503` |
+| 형식 오류 (필드 없음, `kid` 불일치, 필수 값 없음, JSON 아님) | `400` |
+| 복호화 실패 (위조 또는 다른 키) | `401` |
+| 저장 실패 | `500` |
+
 ---
 
 ## 챗봇 서버 토큰 관리 가이드
@@ -284,6 +304,14 @@ docker compose up --build
 - **LIT**: HS256(JWT_SECRET)
 - **챗봇 콜백 서명**: canonical JSON 후 HMAC-SHA256(base64url)
 - **Timestamp 검증**: `verify_timestamps`에서 허용 오차(`skew`) 체크
+
+---
+
+## 탈퇴 정보 저장소
+
+- 위치는 `DELETION_STORE_DIR`(기본 `.cache/deletions`)이며, `diskcache.Cache` 기반으로 만료와 자동 삭제가 없습니다.
+- 키는 `{realm}:{user_id}`이고, 이미 있으면 덮어쓰지 않습니다.
+- 받은 암호문 그대로와 찾기용 메타데이터(`event_id`, `realm`, `user_id`, `received_at`)만 저장합니다. 이메일과 refresh token은 평문으로 남지 않습니다.
 
 ---
 

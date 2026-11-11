@@ -69,6 +69,14 @@ class Config:
     REDIRECT_ALLOWLIST: List[str] = [
         s.strip() for s in os.getenv("REDIRECT_ALLOWLIST", "/").split(",") if s.strip()
     ]
+    # 회원 탈퇴 수신: Keycloak user-deletion 확장과 같은 키 ID, AES-256 키(Base64)
+    SANDOL_DELETION_KEY_ID: str = (
+        os.getenv("SANDOL_DELETION_KEY_ID", "").strip() or "v1"
+    )
+    SANDOL_DELETION_KEY: str = os.getenv("SANDOL_DELETION_KEY", "").strip()
+    DELETION_STORE_DIR: str = os.getenv(
+        "DELETION_STORE_DIR", ""
+    ).strip() or os.path.join(SERVICE_DIR, ".cache", "deletions")
 
     class HttpStatus:
         """Enum: HTTP 상태 코드를 정의한다.
