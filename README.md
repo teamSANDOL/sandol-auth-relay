@@ -92,9 +92,9 @@ Auth-Relay 연동 이후의 MSA 인증 전파/JWKS 정책 문서는 `tuk_sandol_
      "relay_access_token": "<access_token>",
      "offline_refresh_token": "<refresh_token>",
      "issuer": "https://auth.example.com/realms/example",
-     "aud": "kakao-bot",
+     "aud": "sandol-kakao-bot",
      "chatbot_user_id": "user-123",
-     "client_key": "kakao-bot",
+     "client_key": "sandol-kakao-bot",
      "ts": 1700000000,
      "nonce": "<random>"
    }
@@ -172,10 +172,10 @@ cp .env.example .env
 
 ```json
 {
-  "kakao-bot": {
+  "sandol-kakao-bot": {
     "server_url": "https://auth.example.com/",
     "realm": "example",
-    "client_id": "kakao-bot",
+    "client_id": "sandol-kakao-bot",
     "redirect_uri": "{BASE_URL}/oidc/callback",
     "issuer": "https://auth.example.com/realms/example",
     "callback_url_allowlist": [
@@ -193,8 +193,8 @@ cp .env.example .env
 
 - `clients.json`에 `client_secret`이 없으면 환경 변수에서 자동 주입합니다.
 
-  1. `CLIENT_KEY`를 대문자로 변환 + `__SECRETS` 접미사 (예: `KAKAO_BOT__SECRETS`)
-  2. 소문자 원형 + `__secrets` (예: `kakao-bot__secrets`)
+  1. `CLIENT_KEY`를 대문자로 변환 + `__SECRETS` 접미사 (예: `SANDOL_KAKAO_BOT__SECRETS`)
+  2. 소문자 원형 + `__secrets` (예: `sandol-kakao-bot__secrets`)
 
 ---
 
@@ -261,7 +261,7 @@ docker compose up --build
    ```bash
    POST https://auth.example.com/realms/example/protocol/openid-connect/token
    grant_type=refresh_token
-   client_id=kakao-bot
+   client_id=sandol-kakao-bot
    client_secret=<secret>
    refresh_token=<offline_refresh_token>
    ```
