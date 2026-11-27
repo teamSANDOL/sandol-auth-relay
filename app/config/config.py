@@ -27,6 +27,14 @@ if not logger.handlers:
     logger.addHandler(console_handler)
 
 
+def parse_issue_link_auth_mode(raw: str | None) -> str:
+    """ISSUE_LINK_AUTH_MODE 값을 정규화한다(trim·소문자, 빈 값은 warn).
+
+    잘못된 값은 그대로 돌려주고 main lifespan에서 기동을 실패시킨다.
+    """
+    return (raw or "").strip().lower() or "warn"
+
+
 class Config:
     """Config: 애플리케이션 전역 설정을 제공한다.
 
@@ -56,7 +64,9 @@ class Config:
     )
 
     # issue_login_link 호출자 서명 검증 모드: off | warn | enforce
-    ISSUE_LINK_AUTH_MODE: str = os.getenv("ISSUE_LINK_AUTH_MODE", "warn").strip().lower()
+    ISSUE_LINK_AUTH_MODE: str = parse_issue_link_auth_mode(
+        os.getenv("ISSUE_LINK_AUTH_MODE")
+    )
     ISSUE_LINK_AUTH_SKEW_SECONDS: int = int(
         os.getenv("ISSUE_LINK_AUTH_SKEW_SECONDS", "300")
     )
