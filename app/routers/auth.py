@@ -3,7 +3,7 @@ import secrets
 import time
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 
 from app.config import Config, logger
@@ -21,26 +21,30 @@ from app.utils.redirects import callback_url_allowed, redirect_allowed
 from app.utils.storage import sess_set, sess_pop, sess_expired
 from app.utils.kc_client import kc_well_known
 from app.utils.security import sign_payload
+from app.utils.request_signing import authorize_issue_link
 
 router = APIRouter(tags=["auth-relay"])
 
 
 @router.post("/issue_login_link", response_model=IssueLinkRes)
-async def issue_login_link(body: IssueLinkReq) -> IssueLinkRes:
+async def issue_login_link(body: IssueLinkReq, request: Request) -> IssueLinkRes:
     """로그인 링크(LIT)를 발급한다.
 
     Args:
         body (IssueLinkReq): 로그인 링크 발급 요청 본문.
+        request (Request): 서명 검증용 원본 요청.
 
     Returns:
         IssueLinkRes: 생성된 로그인 링크와 만료 시간 정보.
 
     Raises:
-        HTTPException: redirect_after가 허용되지 않는 경우.
+        HTTPException: 서명 검증 실패(enforce, 401) 또는 redirect_after가 허용되지 않는 경우.
 
     HTTP Response:
         200 OK: 로그인 링크 발급 성공 응답을 반환한다.
     """
+    # 호출자 인증을 allowlist 검사보다 먼저 한다(미인증 호출자의 설정 탐색 방지).
+    await authorize_issue_link(request, body.client_key)
     logger.info(
         "issue_login_link: client_key=%s redirect_after=%s",
         body.client_key,

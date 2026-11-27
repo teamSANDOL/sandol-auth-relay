@@ -45,6 +45,19 @@ def sess_expired(ts: int) -> bool:
     return (int(time.time()) - ts) > Config.STATE_TTL_SECONDS
 
 
+def nonce_add_once(key: str, ttl: int) -> bool:
+    """nonce 키를 원자적으로 1회 기록한다.
+
+    Args:
+        key (str): nonce 저장 키.
+        ttl (int): 보관 시간(초).
+
+    Returns:
+        bool: 처음 기록되면 True, 이미 있으면(재사용) False.
+    """
+    return bool(_CACHE.add(key, int(time.time()), expire=ttl))
+
+
 def sess_delete_by_chatbot_user_id(chatbot_user_id: str) -> int:
     deleted = 0
 
