@@ -55,6 +55,12 @@ class Config:
         "RELAY_TO_CHATBOT_HMAC_SECRET", "dev-hmac-secret-please-change"
     )
 
+    # issue_login_link 호출자 서명 검증 모드: off | warn | enforce
+    ISSUE_LINK_AUTH_MODE: str = os.getenv("ISSUE_LINK_AUTH_MODE", "warn").strip().lower()
+    ISSUE_LINK_AUTH_SKEW_SECONDS: int = int(
+        os.getenv("ISSUE_LINK_AUTH_SKEW_SECONDS", "300")
+    )
+
     KAKAO_BOT_APP_ID: str = os.getenv("KAKAO_BOT_APP_ID", "")
     KAKAO_WEBHOOK_PRIMARY_ADMIN_KEY: str = os.getenv(
         "KAKAO_WEBHOOK_PRIMARY_ADMIN_KEY", ""

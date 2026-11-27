@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 import uvicorn
 
 from app.routers import auth_relay_router, webhook_router
-from app.config import logger
+from app.config import Config, logger
 from app.utils.clients import client_registry_init
 
 
@@ -17,6 +17,12 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 서비스 시작:")
     client_registry = client_registry_init()
     client_registry.validate()
+    if Config.ISSUE_LINK_AUTH_MODE not in {"off", "warn", "enforce"}:
+        raise RuntimeError("ISSUE_LINK_AUTH_MODE must be one of off|warn|enforce")
+    logger.info("issue_login_link auth mode: %s", Config.ISSUE_LINK_AUTH_MODE)
+    for key, cfg in client_registry.all().items():
+        if not cfg.issue_link_secret:
+            logger.warning("issue_link_secret missing for client '%s'", key)
 
     yield  # FastAPI가 실행 중인 동안 유지됨
 

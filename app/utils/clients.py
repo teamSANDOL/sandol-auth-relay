@@ -49,9 +49,9 @@ def _derive_from_issuer(issuer: str) -> Tuple[str, str]:
     return server_url, realm
 
 
-def _secret_env_name(client_key: str) -> str:
+def _secret_env_name(client_key: str, suffix: str = "SECRETS") -> str:
     normalized = re.sub(r"[^A-Z0-9_]+", "_", client_key.upper())
-    return f"{normalized}__SECRETS"
+    return f"{normalized}__{suffix}"
 @dataclass
 class ClientConfig:
     """Keycloak 클라이언트 한 개에 대한 설정/상태 래퍼."""
@@ -66,6 +66,8 @@ class ClientConfig:
     realm: str = field(init=False)
     client_id: str = field(init=False)
     client_secret: str = field(init=False)
+    # issue_login_link 요청 서명 검증용 client별 HMAC 비밀(Keycloak client_secret과 별개)
+    issue_link_secret: str = field(init=False)
     redirect_uri: str = field(init=False)
 
     extra: Dict[str, Any] = field(default_factory=dict)
@@ -114,6 +116,9 @@ class ClientConfig:
         self.client_secret = prepared.get("client_secret", "")
         if not self.client_secret:
             self._inject_client_secret()
+        self.issue_link_secret = prepared.get("issue_link_secret", "") or os.getenv(
+            _secret_env_name(self.key, "ISSUE_LINK_SECRET"), ""
+        )
 
         # 나머지 값은 extra에 보관
         for k, v in prepared.items():
@@ -121,6 +126,7 @@ class ClientConfig:
                 "issuer",
                 "client_id",
                 "client_secret",
+                "issue_link_secret",
                 "server_url",
                 "realm",
                 "redirect_uri",

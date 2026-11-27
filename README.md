@@ -157,6 +157,9 @@ docker-compose.yml       # 로컬 테스트용
 | `KAKAO_WEBHOOK_PRIMARY_ADMIN_KEY` | 카카오 연결 해제 웹훅 대표 어드민 키          | `""`                            |
 | `KAKAO_WEBHOOK_ALLOWED_ADMIN_KEYS` | 허용할 카카오 어드민 키 목록(콤마 구분)       | `""`                            |
 | `STATE_TTL_SECONDS`            | state/nonce/code_verifier TTL (초) | `600`                           |
+| `ISSUE_LINK_AUTH_MODE`         | issue_login_link 서명 검증 모드(`off`/`warn`/`enforce`) | `warn`                          |
+| `ISSUE_LINK_AUTH_SKEW_SECONDS` | 서명 timestamp 허용 오차(초), nonce 보관은 2배 | `300`                           |
+| `<CLIENT>__ISSUE_LINK_SECRET`  | client별 요청 서명 비밀 (아래 규약 참고) | 없음                            |
 | `DEBUG`                        | `true`일 경우 DEBUG 로그 출력            | `false`                         |
 | `SESSION_CACHE_DIR`            | diskcache 저장 위치                   | `.cache/sessions`               |
 
@@ -196,6 +199,8 @@ cp .env.example .env
   1. `CLIENT_KEY`를 대문자로 변환 + `__SECRETS` 접미사 (예: `SANDOL_KAKAO_BOT__SECRETS`)
   2. 소문자 원형 + `__secrets` (예: `sandol-kakao-bot__secrets`)
 
+- `issue_link_secret`(요청 서명 비밀)이 없으면 `CLIENT_KEY` 대문자 + `__ISSUE_LINK_SECRET`(예: `SANDOL_KAKAO_BOT__ISSUE_LINK_SECRET`)에서 주입합니다. Keycloak `client_secret`과 다른 값을 씁니다.
+
 ---
 
 ## 로컬 실행
@@ -223,6 +228,35 @@ docker compose up --build
 
 - 챗봇 서버가 Relay에 로그인 링크를 요청합니다.
 - 응답에는 로그인용 LIT 링크가 포함됩니다.
+- 호출자는 아래 [요청 서명 규약](#issue_login_link-요청-서명-규약)으로 서명해야 합니다(`ISSUE_LINK_AUTH_MODE=enforce`일 때 미서명·위조·재전송은 401).
+
+#### issue_login_link 요청 서명 규약
+
+| 헤더 | 값 |
+| --- | --- |
+| `X-Relay-Client-Key` | 호출자 client_key (본문 `client_key`와 같아야 함) |
+| `X-Relay-Timestamp` | epoch 초. relay 시각과 ±`ISSUE_LINK_AUTH_SKEW_SECONDS` 이내 |
+| `X-Relay-Nonce` | 요청마다 새 값, `[A-Za-z0-9_-]{16,128}`. 재사용 시 거부 |
+| `X-Relay-Request-Signature` | 아래 canonical 문자열의 HMAC-SHA256, base64url(패딩 제거) |
+
+canonical 문자열(줄바꿈 `\n` 구분, 끝 줄바꿈 없음):
+
+```text
+SANDOL-RELAY-HMAC-V1
+POST
+/issue_login_link
+<X-Relay-Timestamp>
+<X-Relay-Nonce>
+<X-Relay-Client-Key>
+<요청 본문 바이트의 SHA-256 hex(소문자)>
+```
+
+- 경로는 relay 기준 경로(`/relay` 접두사 제외)라 게이트웨이(`https://<도메인>/relay/issue_login_link`)·직접(`http://auth-relay:8000/relay/issue_login_link`) 호출 모두 같습니다.
+- 본문은 서명한 바이트 그대로 보내야 합니다(재직렬화 금지).
+- 비밀: relay는 client별 `issue_link_secret`(`<CLIENT>__ISSUE_LINK_SECRET`), 호출자는 같은 값을 보관합니다(kakao-bot은 `RELAY_ISSUE_LINK_SECRET`).
+- 검증 순서: 헤더·timestamp·nonce 형식 → client 비밀 조회 → 서명(상수 시간 비교) → 본문 client_key 일치 → nonce 1회 기록(diskcache). 서명이 맞은 요청만 nonce를 소비합니다.
+- 실패 응답은 `401 {"detail": "unauthorized"}`뿐이고, 사유 코드(`missing_headers`, `bad_timestamp`, `timestamp_skew`, `bad_nonce`, `unknown_client`, `no_client_secret`, `bad_signature`, `client_mismatch`, `nonce_reused`)는 서버 로그에만 남깁니다. 비밀·서명값은 로그에 남기지 않습니다.
+- 전환: `warn`(실패해도 통과, 경고 로그) → 호출자 서명 배포 → 로그에 실패가 없음을 확인 → `enforce`. nonce 캐시는 `SESSION_CACHE_DIR`의 diskcache를 쓰므로 여러 워커가 공유하지만, relay 인스턴스를 여러 대로 늘리면 캐시를 공유해야 합니다.
 
 ### `GET /login/{lit}`
 
